@@ -8,4 +8,5 @@ This is a small personal project to visualise data about the Coronavirus from th
 
 The figure below visualises deaths per capita in each country over time.
 
-![Deaths per capita](animation.gif)
+<img src="bar_chart.png" alt="drawing" height="400"/>
+<img src="animation.gif" alt="drawing" height="400"/>

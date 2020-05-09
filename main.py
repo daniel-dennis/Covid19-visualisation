@@ -13,46 +13,43 @@ from PIL import Image
 
 first_date = dt.date(2020, 3, 1)
 
+## Main
+
 def main():
     df = download_data()
-    plot_by_country(df=df, ctype='deaths')
+    # plot_by_country(df=df, ctype='deaths')
+    death_rate_chart(df=df, countries=get_all_countries(df), ctype='deaths', num_to_display=30)
 
-def download_data():
-    covid_raw_pd = pd.read_csv('https://opendata.ecdc.europa.eu/covid19/casedistribution/csv')
-    # covid_raw_pd = pd.read_csv('/Users/daniel/Downloads/cv.csv')
-    cols_to_drop = ['day', 'month', 'year', 'geoId', 'countryterritoryCode', 'continentExp']
-    covid_raw_pd = covid_raw_pd[covid_raw_pd.columns.drop(cols_to_drop)]
-    covid_raw_pd['dateRep'] = pd.to_datetime(covid_raw_pd['dateRep'], format=r'%d/%m/%Y')
-    return covid_raw_pd
+## Visualisation
 
-def get_all_countries(df):
-    return df.loc[:, 'countriesAndTerritories'].drop_duplicates().to_list()
-
-def get_eu_countries():
-    return pd.Series(['Austria', 'Belgium', 'Bulgaria', 'Croatia', 'Cyprus', 'Czechia', 'Denmark', 'Estonia', 'France', 'Germany', 'Greece', 'Hungary', 'Ireland', 'Italy', 'Latvia', 'Lithuania', 'Luxembourg', 'Malta', 'Netherlands', 'Poland', 'Portugal', 'Romania', 'Slovakia', 'Slovenia', 'Spain', 'Sweden'])
-
-def country_series(df, country, ctype, cumsum=False, log=False):
-    country_df = df.loc[df['countriesAndTerritories']  == country]
-    cases = pd.Series(data=country_df.loc[:, ctype].values, index=country_df.loc[:, 'dateRep'], dtype=np.int32)
-    cases = cases.iloc[::-1]
-    
-    if cumsum: 
-        cases = pd.Series.cumsum(cases)
-    if log: 
-        cases = np.log(cases)
-    
-    return cases
-
-def normalised_progression_by_country(df, countries, ctype, log=False):
+def death_rate_chart(df, countries, ctype, num_to_display=None):
     results = pd.DataFrame(index=pd.date_range(start=first_date, end='today'), columns=countries)
     for country in countries:
-        sr = country_series(df, country, ctype, cumsum=True, log=log)
+        sr = country_series(df, country, ctype, cumsum=True, log=False)
         sr /= df[df.countriesAndTerritories == country].iloc[0].popData2018
         results[country] = sr
     results = results.fillna(0)
-    normalised = sklearn.preprocessing.normalize(results.to_numpy())
-    results = pd.DataFrame(data=normalised, index=results.index, columns=results.columns)
-    return results
+    sr = results.iloc[-1]
+    sr = sr.sort_values()
+    if isinstance(num_to_display, int):
+        sr = sr[-num_to_display:]
+        title = '%s per 100,000 for top %d countries' % (ctype.title(), num_to_display)
+    else:
+        title = '%s per 100,000' % (ctype.title())
+
+    sr *= 100000
+    l = len(sr)
+    labels = clean_labels(sr.index)
+    spacing = [(1/l)*i for i in range(l)]
+    colours = matplotlib.cm.hsv(sr / float(max(sr)))
+
+    fig, ax = plt.subplots()
+    plt.barh(spacing, width=sr.to_list(), height=(1/l)*0.92, tick_label=labels, color='orange')
+    plt.yticks(fontsize=8)
+    plt.title(title)
+    plt.xlabel(ctype.title())
+    # plt.show()
+    plt.savefig('bar_chart.png', bbox_inches='tight', dpi=300)
 
 def plot_by_country(df, ctype):
     df = normalised_progression_by_country(df, get_all_countries(df), ctype)
@@ -72,7 +69,7 @@ def plot_by_country(df, ctype):
                 rgba = cmap(df[c][i])
             ax.add_geometries([country.geometry], ccrs.PlateCarree(), facecolor=rgba, label=country.attributes['NAME_LONG'])
         plt.title(str(df.index[i]).split(' ')[0])
-        plt.savefig(tfile, dpi=400)
+        plt.savefig(tfile, dpi=400, bbox_inches='tight')
         saved_figs.append(tfile)
 
     plt.close()
@@ -83,11 +80,63 @@ def plot_by_country(df, ctype):
         ims.append([plt.imshow(X, animated=True)])
     ani = animation.ArtistAnimation(fig, ims, interval=800, blit=True, repeat_delay=1000)
     plt.axis('off')
-    plt.show()
-    ani.save('/Users/daniel/Desktop/animation.gif', writer='imagemagick', fps=2, dpi=400)
+    plt.tight_layout(pad=0)
+    # plt.show()
+    ani.save('animation.gif', writer='imagemagick', fps=2, dpi=400)
     # Writer = animation.writers['ffmpeg']
     # writer = Writer(fps=2, metadata=dict(artist='Me'), bitrate=100000)
     # ani.save('/Users/daniel/Desktop/animation.mp4', writer=writer, dpi=400)
+
+## Data acquisition and processing
+
+def clean_labels(labels):
+    results = []
+    for label in labels:
+        if label == 'Cases_on_an_international_conveyance_Japan':
+            results.append('Japan')
+        elif label == 'United_States_of_America':
+            results.append('United States')
+        else:
+            results.append(label.replace('_', ' '))
+    return results
+
+def download_data():
+    # covid_raw_pd = pd.read_csv('https://opendata.ecdc.europa.eu/covid19/casedistribution/csv')
+    covid_raw_pd = pd.read_csv('/Users/daniel/Downloads/cv.csv')
+    cols_to_drop = ['day', 'month', 'year', 'geoId', 'countryterritoryCode', 'continentExp']
+    covid_raw_pd = covid_raw_pd[covid_raw_pd.columns.drop(cols_to_drop)]
+    covid_raw_pd['dateRep'] = pd.to_datetime(covid_raw_pd['dateRep'], format=r'%d/%m/%Y')
+    return covid_raw_pd
+
+def get_all_countries(df):
+    return df.loc[:, 'countriesAndTerritories'].drop_duplicates().to_list()
+
+def get_eu_countries():
+    return pd.Series(['Austria', 'Belgium', 'Bulgaria', 'Croatia', 'Cyprus', 'Czechia', 'Denmark', 'Estonia', 'France', 'Germany', 'Greece', 'Hungary', 'Ireland', 'Italy', 'Latvia', 'Lithuania', 'Luxembourg', 'Malta', 'Netherlands', 'Poland', 'Portugal', 'Romania', 'Slovakia', 'Slovenia', 'Spain', 'Sweden', 'United_Kingdom'])
+
+def country_series(df, country, ctype, cumsum=False, log=False):
+    country_df = df.loc[df['countriesAndTerritories']  == country]
+    cases = pd.Series(data=country_df.loc[:, ctype].values, index=country_df.loc[:, 'dateRep'], dtype=np.int32)
+    cases = cases.iloc[::-1]
+    cases = pd.Series(data=cases, index=pd.date_range(start=first_date, end='today')).fillna(0)
+    if cumsum: 
+        cases = pd.Series.cumsum(cases)
+    if log: 
+        cases = np.log(cases)
+    return cases
+
+def normalised_progression_by_country(df, countries, ctype, log=False):
+    results = pd.DataFrame(index=pd.date_range(start=first_date, end='today'), columns=countries)
+    for country in countries:
+        sr = country_series(df, country, ctype, cumsum=True, log=log)
+        sr /= df[df.countriesAndTerritories == country].iloc[0].popData2018
+        results[country] = sr
+    results = results.fillna(0)
+    normalised = sklearn.preprocessing.normalize(results.to_numpy())
+    results = pd.DataFrame(data=normalised, index=results.index, columns=results.columns)
+    return results
+
+## Miscellaneous 
 
 def clean_country(country):
     try:
