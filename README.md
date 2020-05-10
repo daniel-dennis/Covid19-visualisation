@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This is a small personal project to visualise data about the Coronavirus from the [EU Open Data Portal](https://data.europa.eu/euodp/en/data/). Requires Pandas, Numpy, Matplotlib, Pillow, Cartopy, and Scikit-Learn.
+This is a small personal project to visualise data about the Coronavirus from the [EU Open Data Portal](https://data.europa.eu/euodp/en/data/). Requires Pandas, Numpy, Matplotlib, Pillow, Cartopy, and Scikit-Learn. Tested on _macOS_, but should be cross-platform.
 
 ## Example
 

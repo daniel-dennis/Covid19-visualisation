@@ -17,8 +17,9 @@ first_date = dt.date(2020, 3, 1)
 
 def main():
     df = download_data()
-    # plot_by_country(df=df, ctype='deaths')
-    death_rate_chart(df=df, countries=get_all_countries(df), ctype='deaths', num_to_display=30)
+    countries = get_all_countries(df, min_population=100000)
+    plot_by_country(df=df, ctype='deaths')
+    death_rate_chart(df=df, countries=countries, ctype='deaths', num_to_display=30)
 
 ## Visualisation
 
@@ -101,18 +102,20 @@ def clean_labels(labels):
     return results
 
 def download_data():
-    # covid_raw_pd = pd.read_csv('https://opendata.ecdc.europa.eu/covid19/casedistribution/csv')
-    covid_raw_pd = pd.read_csv('/Users/daniel/Downloads/cv.csv')
+    covid_raw_pd = pd.read_csv('https://opendata.ecdc.europa.eu/covid19/casedistribution/csv')
+    # covid_raw_pd = pd.read_csv('/Users/daniel/Downloads/cv.csv')
     cols_to_drop = ['day', 'month', 'year', 'geoId', 'countryterritoryCode', 'continentExp']
     covid_raw_pd = covid_raw_pd[covid_raw_pd.columns.drop(cols_to_drop)]
     covid_raw_pd['dateRep'] = pd.to_datetime(covid_raw_pd['dateRep'], format=r'%d/%m/%Y')
     return covid_raw_pd
 
-def get_all_countries(df):
-    return df.loc[:, 'countriesAndTerritories'].drop_duplicates().to_list()
+def get_all_countries(df, min_population=None):
+    if isinstance(min_population, int):
+        df = df[df.popData2018 >= min_population]
+    return df.loc[:, 'countriesAndTerritories'].drop_duplicates()
 
 def get_eu_countries():
-    return pd.Series(['Austria', 'Belgium', 'Bulgaria', 'Croatia', 'Cyprus', 'Czechia', 'Denmark', 'Estonia', 'France', 'Germany', 'Greece', 'Hungary', 'Ireland', 'Italy', 'Latvia', 'Lithuania', 'Luxembourg', 'Malta', 'Netherlands', 'Poland', 'Portugal', 'Romania', 'Slovakia', 'Slovenia', 'Spain', 'Sweden', 'United_Kingdom'])
+    return pd.Series(['Austria', 'Belgium', 'Bulgaria', 'Croatia', 'Cyprus', 'Czechia', 'Denmark', 'Estonia', 'France', 'Germany', 'Greece', 'Hungary', 'Ireland', 'Italy', 'Latvia', 'Lithuania', 'Luxembourg', 'Malta', 'Netherlands', 'Poland', 'Portugal', 'Romania', 'Slovakia', 'Slovenia', 'Spain', 'Sweden'])
 
 def country_series(df, country, ctype, cumsum=False, log=False):
     country_df = df.loc[df['countriesAndTerritories']  == country]
